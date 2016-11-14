@@ -52,6 +52,22 @@ pred_locs = xyFromCell(r, pred_cells) %>% as.data.frame() %>% tbl_df()
 
 ```{r}
 library(xgboost)
+# generate fake data for central park
+x_span = seq(-73.981900, -73.949300, 0.000001)
+y_span = seq(40.764400,40.800600,0.000001)
+x = sample(x_span, 20000)
+y = sample(y_span, 20000)
+precinct = cbind(x,y) %>% apply(1,function(x){
+ if ((x[2]<1.36555*x[1]+141.794) &&
+     (x[2]<8.86415-0.431818*x[1]) &&
+     (x[2]>1.36134*x[1]+141.467) &&
+     (x[2]>9.66207-0.420455*x[1]))
+   return(22)
+ else
+   return(0)
+})
+central = cbind(precinct,x,y)%>%as_data_frame%>%.[.$precinct ==22,]
+combined = bind_rows(combined, central)
 
 precincts = factor(combined$precinct) %>% levels()
 y = (factor(combined$precinct) %>% as.integer()) - 1L
