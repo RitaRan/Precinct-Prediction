@@ -58,7 +58,10 @@ nyc_man %<>% mutate(address = tolower(address))%>%
   mutate(address = str_replace(address,"([0-9]+|[0-9]+ )(th) avenue", 
                                na.omit(paste0(str_match(address,"([0-9]+|[0-9]+ )th avenue")[,2]," avenue"))))%>%
   mutate(address = str_replace(address,"([0-9]+|[0-9]+ )th$",
-                               na.omit(paste0(str_match(address,"([0-9]+|[0-9]+ )th$")[,2]," street"))))
+                               na.omit(paste0(str_match(address,"([0-9]+|[0-9]+ )th$")[,2]," street"))))%>% 
+  mutate(address = str_replace(address,"^([0])([0-9]{1,})",na.omit(str_match(address,"^([0])([0-9]{1,})")[,3])))%>%
+  mutate(address = str_replace(address,"park avenue s(o|u|t|h|.){1,4}","park avenue south"))
+
 
 pluto_xy %<>% mutate(address = tolower(address))%>%
   mutate(address = str_replace(address," (boulevard|bl$)"," blvd"))%>%
@@ -66,8 +69,8 @@ pluto_xy %<>% mutate(address = tolower(address))%>%
 
 combined = inner_join(nyc_man, pluto_xy)
 
-#not_man = anti_join(nyc_man,pluto_xy)
-#not_pluto = anti_join(pluto_xy, nyc_man)
+not_man = anti_join(nyc_man,pluto_xy)
+not_pluto = anti_join(pluto_xy, nyc_man)
 
 ggplot(combined, aes(x=long,y=lat,color=factor(precinct))) + 
   geom_point(size=0.1) +
