@@ -1,0 +1,87 @@
+---
+title: "Modeling Manhattan Precincts"
+output: html_notebook
+---
+
+## Setup
+
+```{r message=TRUE}
+library(raster) # load before dplyr to avoid select bs
+
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+# New packages
+library(nnet)
+library(xgboost)
+
+# Load data
+load(file="precinct.Rdata")
+combined = mutate(combined, x=long, y=lat)
+ggplot(combined, aes(x=x,y=y,color=factor(precinct))) + geom_point()
+```
+
+
+## Get Manhattan Info
+
+```{r}
+nybb = st_read("/data/nyc_parking/nybb/", quiet=TRUE)
+manh = nybb %>% filter(BoroName == "Manhattan")
+#plot(manh,axes=TRUE)
+
+library(raster)
+ext = st_bbox(manh) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
+r = raster(ext, ncol=100, nrow=300)
+r = rasterize(as(manh,"Spatial"),r)
+plot(r)
+```
+
+### Get prediction locations
+
+```{r}
+pred_cells = which(!is.na(r[]))
+pred_locs = xyFromCell(r, pred_cells) %>% as.data.frame() %>% tbl_df()
+plot(pred_locs, pch=16, cex=0.1)
+```
+
+
+
+
+## Model 4 - xgboost
+
+```{r}
+library(xgboost)
+
+precincts = factor(combined$precinct) %>% levels()
+y = (factor(combined$precinct) %>% as.integer()) - 1L
+x = combined %>% select(x,y) %>% as.matrix()
+
+m = xgboost(data=x, label=y, nthead=4, nround=10, objective="multi:softmax", num_class=length(precincts))
+
+pred_xg = predict(m, newdata=as.matrix(pred_locs))
+pred_xg = precincts[pred_xg+1]
+#ggplot(cbind(pred_locs, pred=pred_xg), aes(x=x,y=y,color=factor(pred))) + geom_point()
+```
+
+
+## Rasters -> Polygons
+
+```{r}
+r_xg = r
+r_xg[pred_cells] = as.numeric(pred_xg)
+
+plot(r_xg)
+```
+
+
+## Polygonize
+
+```{r}
+source("polygonizer.R")
+p = polygonizer(r_xg)
+p = st_transform(p, 4326)
+plot(p)
+
+st_write(p,"precincts.json", "data", driver="GeoJSON", quiet=TRUE)
+```
