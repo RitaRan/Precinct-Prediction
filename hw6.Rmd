@@ -1,0 +1,109 @@
+---
+title: "Modeling Manhattan Precincts"
+author:
+- Ran Zhou
+- Ting Dai
+- Cecily Abraham
+- Jonathan Bryan
+output: html_document
+---
+
+```{r}
+library(raster) # load before dplyr to avoid select bs
+
+library(dplyr)
+library(ggplot2)
+library(sf)
+
+# New packages
+library(nnet)
+library(xgboost)
+
+# Load data
+load(file="precinct.Rdata")
+ggplot(combined, aes(x=x,y=y,color=factor(precinct))) + geom_point(alpha=0.1,size = 0.1) + theme_bw()
+```
+## Get Manhattan Info
+
+```{r}
+nybb = st_read("/data/nyc_parking/nybb/", quiet=TRUE)
+manh = nybb %>% filter(BoroName == "Manhattan")
+#plot(manh,axes=TRUE)
+
+ext = st_bbox(manh) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
+r = raster(ext, ncol=100, nrow=300)
+r = rasterize(as(manh,"Spatial"),r)
+plot(r)
+```
+### Get prediction locations
+
+```{r}
+pred_cells = which(!is.na(r[]))
+pred_locs = xyFromCell(r, pred_cells) %>% as_data_frame()
+plot(pred_locs, pch=16, cex=0.1)
+```
+```{r}
+#ggplot(combined, aes(x=x,y=y,color=(precinct==5))) + geom_point()
+
+data = combined %>%
+  mutate(z = as.integer(precinct == 5)) %>%
+  select(x,y,z)
+
+g = glm(z~poly(x,2)*poly(y,2), data=data, family=binomial)
+summary(g)
+
+#pred_glm = predict(g, type="response")
+#ggplot(cbind(data, pred=pred_glm), aes(x=x,y=y,color=pred)) + geom_point()
+
+pred_glm = predict(g, newdata=pred_locs, type="response")
+ggplot(cbind(pred_locs, pred=pred_glm), aes(x=x,y=y,color=pred)) + geom_point()
+
+precincts = combined$precinct %>% unique() %>% sort()
+
+res = matrix(NA, ncol=length(precincts), nrow=nrow(pred_locs)) %>%
+  as_data_frame() %>%
+  setNames(paste0("Precinct_",precincts))
+
+pb = progress_estimated(length(precincts))
+for(i in seq_along(precincts))
+{
+  p = precincts[i]
+  
+  data = combined %>%
+    mutate(z = as.integer(precinct == p)) %>%
+    select(x,y,z)
+
+  g = glm(z~poly(x,2)*poly(y,2), data=data, family=binomial)
+  
+  res[,i] = predict(g, newdata=pred_locs, type="response")
+  
+  pb$tick()$print()
+}
+pred_mglm = apply(res, 1, which.max) %>% precincts[.]
+ggplot(cbind(pred_locs, pred=pred_mglm), aes(x=x,y=y,color=factor(pred))) + geom_point()
+```
+
+## Rasters -> Polygons
+
+```{r}
+r_mglm = r
+#r_mnom = r
+#r_xg = r
+
+r_mglm[pred_cells] = as.integer(pred_mglm)
+#r_mnom[pred_cells] = pred_mnom
+#r_xg[pred_cells] = as.numeric(pred_xg)
+
+plot(r_mglm)
+```
+
+## Polygonize
+
+```{r}
+source("polygonizer.R")
+p = polygonizer(r_mglm)
+p = st_transform(p, 4326)
+plot(p)
+st_write(p,"precincts.json", "data", driver="GeoJSON", quiet=TRUE)
+```
+
