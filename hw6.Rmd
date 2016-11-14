@@ -32,7 +32,7 @@ manh = nybb %>% filter(BoroName == "Manhattan")
 
 library(raster)
 ext = st_bbox(manh) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
-r = raster(ext, ncol=100, nrow=300)
+r = raster(ext, ncol=200, nrow=600)
 r = rasterize(as(manh,"Spatial"),r)
 plot(r)
 ```
