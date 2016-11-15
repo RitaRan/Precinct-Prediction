@@ -74,7 +74,7 @@ precincts = factor(combined$precinct) %>% levels()
 y = (factor(combined$precinct) %>% as.integer()) - 1L
 x = combined %>% select(x,y) %>% as.matrix()
 
-m = xgboost(data=x, label=y, nthead=4, nround=20, objective="multi:softmax", num_class=length(precincts))
+m = xgboost(data=x, label=y, nthead=4, nround=5, max_depth = 15, objective="multi:softmax", num_class=length(precincts))
 
 pred_xg = predict(m, newdata=as.matrix(pred_locs))
 pred_xg = precincts[pred_xg+1]
