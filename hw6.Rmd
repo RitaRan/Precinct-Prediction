@@ -31,9 +31,9 @@ manh = nybb %>% filter(BoroName == "Manhattan")
 
 library(raster)
 ext = st_bbox(manh) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
-r = raster(ext, ncol=200, nrow=800)
+r = raster(ext, ncol=400, nrow=556)
 r = rasterize(as(manh,"Spatial"),r)
-#plot(r)
+plot(r)
 ```
 
 ### Get prediction locations
@@ -62,8 +62,9 @@ precinct = cbind(x,y) %>% apply(1,function(x){
  else
    return(0)
 })
-central = cbind(precinct = as.integer(precinct),x,y)%>%as_data_frame%>%.[.$precinct==22,]
+central = cbind(precinct = as.integer(precinct),x,y) %>% as_data_frame %>% .[.$precinct==22,]
 combined = bind_rows(combined, central)
+combined = combined[sample(1:nrow(combined),nrow(combined),replace = FALSE),]
 
 precincts = factor(combined$precinct) %>% levels()
 y = (factor(combined$precinct) %>% as.integer()) - 1L
