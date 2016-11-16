@@ -33,16 +33,24 @@ library(raster)
 ext = st_bbox(manh) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
 r = raster(ext, ncol=400, nrow=556)
 r = rasterize(as(manh,"Spatial"),r)
-plot(r)
+
+load("/data/nyc_parking/manh_bound.Rdata")
+extb = st_bbox(bound) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
+rb = raster(extb, ncol=100, nrow=300)
+rb = rasterize(as(bound,"Spatial"),r)
+
+par(mfrow=c(1,2))
+plot(r,asp=0)
+plot(rb,asp=0)
 ```
 
 ### Get prediction locations
 
 ```{r}
-pred_cells = which(!is.na(r[]))
-pred_locs = xyFromCell(r, pred_cells) %>% as.data.frame() %>% tbl_df()
+pred_cells = which(!is.na(rb[]))
+pred_locs = xyFromCell(rb, pred_cells) %>% as.data.frame() %>% tbl_df()
 #look = pred_locs%>%filter(x>=-73.981900 & x<=-73.949300)%>%arrange(desc(x))
-#plot(pred_locs, pch=16, cex=0.1)
+plot(pred_locs, pch=16, cex=0.1)
 ```
 
 ## Model 4 - xgboost
@@ -78,16 +86,16 @@ m = xgboost(data=x, label=y, nthead=4, nround=25, max_depth = 15, objective="mul
 
 pred_xg = predict(m, newdata=as.matrix(pred_locs))
 pred_xg = precincts[pred_xg+1]
-ggplot(cbind(pred_locs, pred=pred_xg)[pred_xg==22,], aes(x=x,y=y,color=factor(pred))) + geom_point()
+ggplot(cbind(pred_locs, pred=pred_xg), aes(x=x,y=y,color=factor(pred))) + geom_point()
 ```
 
 
 ## Rasters -> Polygons
 
 ```{r}
-r_xg = r
+r_xg = rb
 r_xg[pred_cells] = as.numeric(pred_xg)
-#plot(r_xg)
+plot(r_xg)
 ```
 
 
