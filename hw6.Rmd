@@ -87,6 +87,7 @@ ggplot(cbind(pred_locs, pred=pred_xg)[pred_xg==22,], aes(x=x,y=y,color=factor(pr
 ```{r}
 r_xg = r
 r_xg[pred_cells] = as.numeric(pred_xg)
+
 #plot(r_xg)
 ```
 
