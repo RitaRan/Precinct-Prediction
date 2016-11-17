@@ -28,7 +28,7 @@ ggplot(combined, aes(x=x,y=y,color=factor(precinct))) + geom_point()
 library(raster)
 load("/data/nyc_parking/manh_bound.Rdata")
 extb = st_bbox(bound) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
-rb = raster(extb, ncol=400, nrow=556)
+rb = raster(extb, ncol=600, nrow=834)
 rb = rasterize(as(bound,"Spatial"),rb)
 
 plot(rb,asp=0)
@@ -48,10 +48,10 @@ plot(pred_locs, pch=16, cex=0.1)
 library(xgboost)
 # generate fake data for central park
 combined %<>% filter(precinct!=22)
-x_span = seq(-73.981600, -73.94950, 0.0003526966)
-y_span = seq(40.76458,40.80055,0.0003527358)
-x = sample(x_span, 100000,replace = TRUE)
-y = sample(y_span, 100000,replace = TRUE)
+x_span = seq(-73.9814800, -73.949670, 0.0002288386)
+y_span = seq(40.76474,40.80046,0.0002334587)
+x = sample(x_span, 60000,replace = TRUE)
+y = sample(y_span, 60000,replace = TRUE)
 is22 = function(x){
  if ((x[2]<=1.36555*x[1]+141.794) &&
      (x[2]<=8.86415-0.431818*x[1]) &&
@@ -75,6 +75,7 @@ m = xgboost(data=x, label=y, nthead=4, nround=25, max_depth = 15,objective="mult
 
 pred_xg = predict(m, newdata=as.matrix(pred_locs))
 pred_xg = precincts[pred_xg+1]
+
 ggplot(cbind(pred_locs, pred=pred_xg), aes(x=x,y=y,color=factor(pred))) + geom_point()
 ```
 
