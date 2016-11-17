@@ -82,7 +82,44 @@ precincts = factor(combined$precinct) %>% levels()
 y = (factor(combined$precinct) %>% as.integer()) - 1L
 x = combined %>% select(x,y) %>% as.matrix()
 
-m = xgboost(data=x, label=y, nthead=4, nround=25, max_depth = 15, objective="multi:softmax", num_class=length(precincts))
+x1 = sample(x_span, 60000, replace = TRUE)
+y1 = sample(y_span, 60000, replace = TRUE)
+in221 = cbind(x1,y1) %>% apply(1,is22)
+central1 = cbind(precinct = rep(22,length(x1)),x1,y1) %>% .[in221,] %>% as_data_frame
+combined1 = combined %>% filter(!combined[,c("x","y")]%>%apply(1,is22))
+combined1 = bind_rows(combined1, central1%>%setNames(c("precinct","x","y")))
+combined1 = combined1[sample(1:nrow(combined1),nrow(combined1),replace = FALSE),]
+
+precincts1 = factor(combined1$precinct) %>% levels()
+ynew = (factor(combined1$precinct) %>% as.integer()) - 1L
+xnew = combined1 %>% select(x,y) %>% as.matrix()
+
+
+m = xgboost(data=x, label=y, nthead=4, nround=25, max_depth = 15,objective="multi:softmax", num_class=length(precincts))
+table(combined$precinct)
+
+m = xgboost(data=xnew, label=ynew, nthead=4, nround=25, max_depth = 15,objective="multi:softmax", num_class=length(precincts))
+
+
+library(class)
+train = combined[1:10000,]
+test = combined[11000:12000,]
+knn.fit = knn(train[,c("x","y")],test[,c("x","y")], factor(train$precinct), k = 22)
+mean(test$precinct!=knn.fit)
+ggplot(cbind(test[,c("x","y")], pred=knn.fit), aes(x=x,y=y,color=factor(pred))) + geom_point()
+
+kn = c(21,22,23)
+yn = factor(combined$precinct)
+error = matrix(0,10,3)
+library(caret)
+folds = createFolds(1:1574104)%>%setNames(NULL)
+for(i in 1:3){
+  for(j in 1:10){
+    knn.fit = knn(x[-folds[[j]],], x[folds[[j]],], yn[-folds[[j]]], k = kn[i],use.all=FALSE)
+    error[j,i]=mean(yn[folds[[j]]] != knn.fit)
+  }
+}
+
 
 pred_xg = predict(m, newdata=as.matrix(pred_locs))
 pred_xg = precincts[pred_xg+1]
