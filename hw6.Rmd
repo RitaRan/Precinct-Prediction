@@ -2,6 +2,17 @@
 title: "Modeling Manhattan Precincts"
 output: html_notebook
 ---
+## Write-Up
+We began this assignment by cleaning up the data in the merge.R file. Since the code was only using violations recorded with one version of the street names (street, avenue, blvd vs. st, ave, boulevard, etc.), we mutated various abbreviations and common misspellings to their correct counterparts, so as to increase the amount of data. The more points we had, the more accurately the precincts would be defined. We did the same thing with all numbered streets (1st avenue to 1 avenue) and directional designations (e to east, w to west, etc.), because only records with only the number and no suffix, and only records with the full east/west/north/south, were being included. We also corrected a few edge cases like Avenue of the Americas and Park Street South. This cleanup alone got our score to around 0.3.  
+    
+Another small tweak we made to try to improve accuracy was to increase the raster resolution and assign the number of rows and columns in a ratio that reflected the size/shape of Manhattan (600 columns and 834 rows). We are not sure how much this helped, if at all, because it was implemented simutaneously to other improvements.
+  
+Our next, and most important task, was to tackle Central Park/Precinct 22. We chose to generate the fake data using a rejection sampling method. We defined a rectangle around Central Park using the easter, western, southern, and northern most points of the Park as the boundaries of the rectangle, and then sampled 60,000 points from this rectangle. We chose to define a smaller space around Central Park because sampling from all of Manhattan would have required us to sample many, many more points in order to get the desired number of points that fell within Central Park. Then we defined a function to determine if a sampled point was in the boundaries of the Park. We did this by defining the edges of the Park in line equation form, and then saying to return TRUE if the point was above and below the necessary lines required to be in the Park. THIS IS WHERE I'M STUCK, PLEASE EXPLAIN THE END OF THE PRECINCT 22 CODE. Filling Precinct 22 with fake data had a massive improvement on the map and our score. Precicnt 22 appeared as a clear rectangle that very closely matched the Central Park boundaries. Before this step there was no Precinct 22, and Precincts 19 and 20, to the east and west of the Park, respectively, appeared as though they covered Cenral Park and split it somewhere near the middle. Our score came down to about a 0.182.  
+  
+Colin's editing of the Manhattan boundaries, which got rid of Roosevelt Island and some piers in Brooklyn which were both being counted as Manhattan precincts, had a large impact, and further reduced our score to about a 0.16. I DONT KNOW WHAT THE LAST STUFF YOU DID WAS TO GET IT TO 0.15.
+
+An unsolved obstacle: Randall's Island is still innacurate, but since there is no data for it, we had trouble coming up with a way to fix it without a scheme like the Central Park fake data scheme, which Colin said wasn't allowed. 
+
 
 ## Setup
 
@@ -28,7 +39,7 @@ ggplot(combined, aes(x=x,y=y,color=factor(precinct))) + geom_point()
 library(raster)
 load("/data/nyc_parking/manh_bound.Rdata")
 extb = st_bbox(bound) %>% .[c("xmin","xmax","ymin","ymax")] %>% extent()
-rb = raster(extb, ncol=600, nrow=834)
+rb = raster(extb, ncol=600, nrow=834) # Increased raster resolution 
 rb = rasterize(as(bound,"Spatial"),rb)
 
 plot(rb,asp=0)
@@ -46,12 +57,18 @@ plot(pred_locs, pch=16, cex=0.1)
 
 ```{r}
 library(xgboost)
-# generate fake data for central park
+# generate fake data for Central Park
 combined %<>% filter(precinct!=22)
+
+# Make rectangle around Central Park from which to sample data
 x_span = seq(-73.9814800, -73.949670, 0.0002288386)
 y_span = seq(40.76474,40.80046,0.0002334587)
+
+# Sample points from the rectangle
 x = sample(x_span, 60000,replace = TRUE)
 y = sample(y_span, 60000,replace = TRUE)
+
+# Define a function to determine if a sampled point is within the Park boundaries
 is22 = function(x){
  if ((x[2]<=1.36555*x[1]+141.794) &&
      (x[2]<=8.86415-0.431818*x[1]) &&
@@ -61,6 +78,8 @@ is22 = function(x){
  else
    return(FALSE)
 }
+
+# Add all points that are in the Park (Precinct 22) to the data
 in22 = cbind(x,y) %>% apply(1,is22)
 central = cbind(precinct = rep(22,length(x)),x,y) %>% .[in22,] %>% as_data_frame
 combined %<>% filter(!combined[,c("x","y")] %>% apply(1,is22))
