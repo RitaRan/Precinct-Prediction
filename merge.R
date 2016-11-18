@@ -82,8 +82,6 @@ pluto_xy %<>% mutate(address = tolower(address))%>%
 
 ## inner combine both data sets based on address
 combined = inner_join(nyc_man, pluto_xy)
-#not_man = anti_join(nyc_man,pluto_xy)
-#not_pluto = anti_join(pluto_xy, nyc_man)
 
 ggplot(combined, aes(x=x,y=y,color=factor(precinct))) + 
   geom_point(size=0.1) +
