@@ -7,3 +7,4 @@ The goal is to reconstruct the precinct map of Manhattan using two source data:
 # Code written for this task
 - merge.R: clean the two source data and create data tables for each of them; merge the two tables based on cleaned 'address'.
 - hw6.Rmd: train the model and reconstruct the precincts; plot the results on a map
+- precincts.json: visualize the predicted precint on a map
